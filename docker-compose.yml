@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  aspnet-app:
+    build:
+      context: ./aspnet-app
+      dockerfile: Dockerfile
+    container_name: aspnet-cache-app
+    ports:
+      - "8080:8080" # Puedes exponerlo si quieres acceder directamente a la app, si no, puedes quitarlo
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      - ./aspnet-app/data:/app/data # persistencia de la base de datos SQLite
+    networks:
+      - app-network
+
+  varnish:
+    image: varnish:6.0 # O una versión más reciente si está disponible
+    container_name: varnish-cache
+    ports:
+      - "800:80" # Puerto público para acceder a Varnish
+      - "6082:6082" # Puerto de administración de Varnish (VCL, stats)
+    volumes:
+      - ./varnish/default.vcl:/etc/varnish/default.vcl:ro
+    depends_on:
+      - aspnet-app
+    command: ["varnishd", "-F", "-a", ":80", "-s", "malloc,256m", "-f",
+     "/etc/varnish/default.vcl", "-T", ":6082","-p" ,"http_req_hdr_len=2048",
+     "-p","http_req_size=10240"]
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
