@@ -1,6 +1,37 @@
 version: '3.8'
 
 services:
+  squid:
+    image: sameersbn/squid:3.5.27-2
+    ports:
+      - "3128:3128"
+    volumes:
+      - ./squid-lab/squid.conf:/etc/squid/squid.conf
+      - ./squid-lab/cache:/var/spool/squid
+    depends_on:
+      - aspnet-app
+    networks:
+      - app-network
+    restart: unless-stopped
+    
+
+
+  nginx:
+    build:
+      context: ./nginx # Ruta a la carpeta de Nginx
+      dockerfile: Dockerfile
+    ports:
+      - "8000:80" # Nginx escuchará en el puerto 80 del host
+    depends_on:
+      - aspnet-app # Nginx dependerá de que tu app ASP.NET Core esté levantada
+    command: [nginx-debug, '-g', 'daemon off;']
+    volumes:
+      - ./nginx_logs:/var/cache/nginx # Volumen persistente para la caché de Nginx
+    # Puedes mapear los logs de Nginx también si quieres verlos fácilmente
+    # - ./nginx_logs:/var/log/nginx
+    networks:
+      - app-network
+
   aspnet-app:
     build:
       context: ./aspnet-app

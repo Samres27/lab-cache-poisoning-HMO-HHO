@@ -65,13 +65,14 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 
-app.Map("/resource", async context =>
+app.Map("/override", async context =>
 {
     context.Response.Headers.Add("Cache-Control", "no-cache, no-store"); // Asegúrate de no cachear esto
     var originalMethod = context.Request.Headers["X-Original-Method"].ToString(); // Si lo pasas desde Varnish
     var processedMethod = context.Request.Method;
 
-    string responseContent = $"<h1>HMO Test Endpoint</h1>" +
+    string responseContent = $"<h1>Cache Poisoning Lab- Method Override Attack</h1>" +
+                             $"<p>Time: {DateTime.UtcNow} UTC</p>"+
                              $"<p>Original HTTP Method (as seen by Kestrel): {originalMethod}</p>" +
                              $"<p>Processed HTTP Method (after MethodOverrideMiddleware): {processedMethod}</p>";
 
@@ -88,7 +89,7 @@ app.Map("/resource", async context =>
     await context.Response.WriteAsync(responseContent);
 });
 
-app.MapGet("/poisoned-content", async context =>
+app.MapGet("/long-header-content", async context =>
 {
     var hostHeader = context.Request.Headers["Host"].ToString();
     var xForwardedHost = context.Request.Headers["X-Forwarded-Host"].ToString();
@@ -97,7 +98,7 @@ app.MapGet("/poisoned-content", async context =>
     var cachedMessageSetting = await dbContext.Settings.FirstOrDefaultAsync(s => s.Key == "CachedMessage");
     string cachedMessage = cachedMessageSetting?.Value ?? "No message in DB.";
 
-    string responseContent = $"<h1>Cache Poisoning Lab</h1>" +
+    string responseContent = $"<h1>Cache Poisoning Lab- Header Oversize</h1>" +
                              $"<p>Time: {DateTime.UtcNow} UTC</p>" +
                              $"<p>Original Cached Message from DB: {cachedMessage}</p>" +
                              $"<p>Request Host Header: {hostHeader}</p>" +
@@ -107,6 +108,23 @@ app.MapGet("/poisoned-content", async context =>
     {
         responseContent += $"<p>*** POISONED CONTENT based on X-Custom-Poison: {customHeader} ***</p>";
     }
+
+    context.Response.Headers.Add("Cache-Control", "public, max-age=60"); 
+    context.Response.Headers.Add("X-Cache-Poison-Test", "true"); 
+    await context.Response.WriteAsync(responseContent);
+});
+
+app.MapGet("/metacaracter-header", async context =>
+{
+    var setCookie = context.Request.Headers["Set-Cookie"].ToString();
+    var cacheControl = context.Request.Headers["Cache-Control"].ToString(); 
+    var dbContext = context.RequestServices.GetRequiredService<AppDbContext>();
+    
+    string responseContent = $"<h1>Cache Poisoning Lab- MetaCaracter</h1>" +
+                             $"<p>Time: {DateTime.UtcNow} UTC</p>" +
+                             $"<p>Cookie Header: {setCookie}</p>" +
+                             $"<p>cache control Header: {cacheControl}</p>";
+   
 
     context.Response.Headers.Add("Cache-Control", "public, max-age=60"); 
     context.Response.Headers.Add("X-Cache-Poison-Test", "true"); 

@@ -1,0 +1,29 @@
+# Configuración básica
+http_port 3128
+visible_hostname squid-proxy
+
+# Política de caché (1 minuto para todos los códigos)
+cache_mem 256 MB
+maximum_object_size 1024 MB
+cache_dir ufs /var/spool/squid 1000 16 256
+
+# Reglas de caché (1 minuto para todos los códigos de respuesta)
+refresh_pattern . 1 100% 1 override-expire override-lastmod reload-into-ims
+
+# Permitir todos los métodos HTTP
+acl all src all
+http_access allow all
+
+# Configuración para pruebas HMC
+relaxed_header_parser on
+request_header_max_size 32 KB
+reply_header_max_size 32 KB
+
+# No cachear estas cabeceras (para pruebas)
+acl UNCACHEABLE method POST PUT DELETE
+cache deny UNCACHEABLE
+
+# Proxy inverso para backend en 8080
+cache_peer localhost parent 8080 0 no-query originserver name=myBackend
+cache_peer_access myBackend allow all
+never_direct allow all
